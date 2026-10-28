@@ -1,0 +1,57 @@
+# TEMPORARY: emulator screenshots of the account picker. Not part of any PR.
+name: Account picker screenshots
+
+on:
+  push:
+    branches: [ "claude/optimistic-johnson-5g4pla-screenshots" ]
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Demo patch (screenshot build only)
+        run: python3 .github/screenshot/demo_patch.py
+
+      - name: Build debug APK
+        run: chmod +x gradlew && ./gradlew assembleStbetaDebug
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Android TV emulator and take screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/screenshot/take.sh
+
+      - name: Commit screenshots to this temporary branch
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout -- . ':!.github/screenshot/out'
+          git add .github/screenshot/out
+          git commit -m "screenshots" || true
+          git push origin HEAD:${{ github.ref_name }}
