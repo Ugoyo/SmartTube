@@ -3,10 +3,11 @@ set -x
 OUT=.github/screenshot/out
 mkdir -p $OUT
 PKG=org.smarttube.beta
-APK=$(ls smarttubetv/build/outputs/apk/stbeta/debug/*universal*.apk 2>/dev/null | head -1)
-[ -z "$APK" ] && APK=$(ls smarttubetv/build/outputs/apk/stbeta/debug/*x86*.apk | grep -v x86_64 | head -1)
+# The universal APK has no x86 native libs, use the x86 split for the emulator
+ls smarttubetv/build/outputs/apk/stbeta/debug/
+APK=$(ls smarttubetv/build/outputs/apk/stbeta/debug/*_x86.apk | head -1)
 echo "APK: $APK"
-adb install -r -g "$APK"
+adb install -r -g "$APK" || exit 1
 shot() { adb exec-out screencap -p > "$OUT/$1.png"; }
 
 # Start the app normally first (app init), then open the picker
